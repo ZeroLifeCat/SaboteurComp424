@@ -4,65 +4,68 @@ import java.util.ArrayList;
 
 import Saboteur.SaboteurBoardState;
 import Saboteur.SaboteurMove;
+import Saboteur.cardClasses.SaboteurCard;
+import Saboteur.cardClasses.SaboteurMap;
 import Saboteur.cardClasses.SaboteurTile;
 import boardgame.Board;
 
 public class MyTools {
-	//TODO: Determine EXPLORE_DEPTH
-	private static int EXPLORE_DEPTH = 4;
     public static double getSomething() {
         return Math.random();
     }
     
-    public static int alpha_beta_pruning(int alpha, int beta,int depth ,BoardState state) {
-    	
-    	if(depth == EXPLORE_DEPTH || state.getWinner() != Board.NOBODY) {
+    /*public static int alpha_beta_pruning(int alpha, int beta,int depth ,SaboteurBoardState state) {
+    	if(depth == 2 || state.getWinner() != Board.NOBODY) {
     		 if (depth %2 == 0) {
     			 return GetHeuristic(state)/(depth+1);
     		 }
     		 return - GetHeuristic(state)/(depth+1);
     	}
     	
-    	//Initialize best value
-    	int bestVal;
-    	if(depth%2 ==0) {	//Max Player
-    		bestVal = Integer.MIN_VALUE;
-    	}else{				//Min Player
-    		bestVal = Integer.MAX_VALUE;
+    	int val = -1000000;
+    	if(depth%2 ==0) {
+    		val = 1000000;
     	}
     	
     	ArrayList<SaboteurMove> list = state.getAllLegalMoves();
     	for(SaboteurMove move : list) {
-    		state.processMove(move);
+    		SaboteurBoardState clone = (SaboteurBoardState) state.clone();
+    		clone.processMove(move);
     		
-    		int value = alpha_beta_pruning(alpha, beta, depth+1, state);
+    		int value = alpha_beta_pruning(alpha, beta, depth+1, clone);
     		
-    		if(depth%2 ==0) {		//Max Player
-    			if(value > bestVal) {
-    				bestVal = value;
-    				alpha = bestVal;
+    		if(alpha>= beta) {
+    			return depth%2 ==0? alpha: beta;
+    		}
+    		
+    		if(depth%2 ==0) {
+    			if(value < val) {
+    				val = value;
     			}
-    			if(beta <= alpha) {
-    				break;
+    			if(beta > val) {
+    				beta = val;
     			}
     		}
-    		else {					//Min player
-    			if(value < bestVal) {
-    				bestVal = value;
-    				beta = bestVal;
+    		else {
+    			if(value > val) {
+    				val = value;	
     			}
-    			if(beta <= alpha) {
-    				break;
+    			if(alpha < val) {
+    				alpha = val;
     			}
+    		}
+    		
+    		if(alpha >= beta) {
+    			return depth%2 ==0? alpha:beta;
     		}
     	}
     		
-    	return bestVal;
+    	return val;
     }
     
     
     //TODO: Observe the board state and calculate the heuristic value.
-    public static int GetHeuristic(BoardState state) {
+    /*public static int GetHeuristic(SaboteurBoardState state) {
     	
     	int score = 0;
     	
@@ -70,7 +73,7 @@ public class MyTools {
     	int goal = 12;
     	int opponent = state.getTurnPlayer();
     	int self = 1-opponent;
-    	SaboteurTile[][] board = state.board;
+    	SaboteurTile[][] board = state.getBoardForDisplay();
     	
     	//check winner state
     	if(state.getWinner() == opponent) {
@@ -157,6 +160,96 @@ public class MyTools {
     	}
     	
     	return score;
+    }*/
+    
+    public static double GetHeuristic(SaboteurMove m, SaboteurTile[][] board, int[][] intboard) {
+    	int[] nugget = checkNugget(board);
+    	SaboteurTile card = (SaboteurTile) m.getCardPlayed();
+    	
+    	for(int i = 0; i<3; i++) {
+    		for(int j = 0 ; j<3; j++) {
+    			intboard[3*m.getPosPlayed()[0]+2-j][3*m.getPosPlayed()[1]+i] = card.getPath()[i][j];
+    		}
+    	}
+    	
+    	double res = countLiveEnd(intboard)/100.0;
+    	
+    	board[m.getPosPlayed()[0]][m.getPosPlayed()[1]] = card;
+    	PathTree pt = new PathTree(board);
+    	double sd = 100;
+    	if(nugget != null) {
+    		for(TileNode tn : pt.leaves) {
+    			if(!checkDeadEnd(tn.tile)) {
+	    			int d = checkDist(tn.x(),tn.y(),nugget[0],nugget[1]);
+	    			if(d == 0) {
+	    				return 10000;
+	    			}
+	    			else if(d == 1||d==2) {
+	    				return -1;
+	    			}
+	    			else {
+	    				if(d < sd) {
+	    					sd = d;
+	    				}
+	    			}
+    			}
+    		}
+    	}
+    	else {
+    		for(TileNode tn : pt.leaves) {
+    			if(!checkDeadEnd(tn.tile)) {
+	    			int d = checkDist(tn.x(),tn.y(),12,3);
+	    			int d2 = checkDist(tn.x(),tn.y(),12,5);
+	    			int d3 = checkDist(tn.x(),tn.y(),12,7);
+	    			if(d == 0 && d2 == 0 && d3==0) {
+	    				return 10000;
+	    			}
+	    			if((d == 0 && d2 == 0) || (d3 == 0 && d2 == 0)||(d3 == 0 && d == 0)) {
+	    				return 5000;
+	    			}
+	    			if(d == 0 || d2 == 0 || d3==0) {
+	    				return 1000;
+	    			}
+	    			else if(d == 1) {
+	    				return -1;
+	    			}
+	    			else {
+	    				if((d+d2+d3)/3.0 < sd) {
+	    					sd = (d+d2+d3)/3.0;
+	    				}
+	    			}
+    			}
+    		}
+    	}
+    	
+    	board[m.getPosPlayed()[0]][m.getPosPlayed()[1]] = null;
+    	for(int i = 0; i<3; i++) {
+    		for(int j = 0 ; j<3; j++) {
+    			intboard[3*m.getPosPlayed()[0]+2-j][3*m.getPosPlayed()[1]+i] = -1;
+    		}
+    	}
+    	return 1.0/sd+res;
+    }
+    
+    public static int countLiveEnd(int[][] intboard) {
+    	int n = 0;
+    	for(int i = 0; i < intboard.length-1; i++) {
+    		for(int j = 0; j < intboard.length-1; j++) {
+    			if( Math.abs(intboard[i][j] - intboard[i+1][j])==2)n++;
+    			if( Math.abs(intboard[i][j] - intboard[i][j+1])==2)n++;
+    		}
+    	}
+    	return n;
+    }
+    
+    public static boolean checkConnected(SaboteurTile tile1, SaboteurTile tile2, int i, int j, int i2, int j2) {
+    	if(checkDist(i,j,i2,j2) == 1) {
+    		if(i - i2 == -1) return tile1.getPath()[1][2] == 1&&tile2.getPath()[1][0]==1;
+    		if(i - i2 == 1) return tile1.getPath()[1][0] == 1&&tile2.getPath()[1][2]==1;
+    		if(j - j2 == -1) return tile1.getPath()[2][1] == 1&&tile2.getPath()[0][1]==1;
+    		if(j - j2 == 1) return tile1.getPath()[0][1] == 1&&tile2.getPath()[2][1]==1;
+    	}
+    	return false;
     }
     
     public static int checkDist(int i, int j, int i2, int j2) {
@@ -173,104 +266,122 @@ public class MyTools {
     	return false;
     }
     
-    /*public class TileNode{
-    	public SaboteurTile tile;
-    	public int[] position = new int[2];
-    	public int depth;
-    	public ArrayList<TileNode> children = new ArrayList<TileNode>();
-    	
-    	public TileNode(SaboteurTile t, int i, int j, int d){
-    		tile = t;
-    		position[0] = i;
-    		position[1] = j;
-    		depth = d;
+    public static int[] checkNugget(SaboteurTile[][] board) {
+    	if(board[12][3] != null) {
+    		if(board[12][3].getIdx().equals("nugget")) return new int[]{12,3};
+    	}
+    	if(board[12][5] != null) {
+    		if(board[12][5].getIdx().equals("nugget")) return new int[]{12,5};
+    	}
+    	if(board[12][7] != null) {
+    		if(board[12][7].getIdx().equals("nugget")) return new int[]{12,7};
+    	}
+    	return null;
+    }
+    
+    public static SaboteurMove Bonus(ArrayList<SaboteurMove> moves, int nbMalus) {
+    	for(SaboteurMove m : moves) {
+    		String type = m.getCardPlayed().getName();
+    		if(type.equals("Bonus")) {
+    			if(nbMalus > 0) {
+    				return m;
+    			}
+    		}
+    	}
+    	return null;
+    }
+    
+    public static SaboteurMove Malus(ArrayList<SaboteurMove> moves) {
+    	for(SaboteurMove m : moves) {
+    		String type = m.getCardPlayed().getName();
+		    if(type.equals("Malus")) {
+				return m;
+			}
+    	}
+    	return null;
+    }
+			
+    
+    
+    public static SaboteurMove map(ArrayList<SaboteurMove> moves, SaboteurTile[][] boardstate) {
+    	if(boardstate[12][3].getIdx().equals("nugget")||boardstate[12][5].getIdx().equals("nugget")||boardstate[12][7].getIdx().equals("nugget")) {
+    		return null;
     	}
     	
-    	public void Addchild(TileNode t) {
-    		children.add(t);
+    	for(SaboteurMove m : moves) {
+    		String type = m.getCardPlayed().getName();
+    		if(type.equals("Map")) {
+    			int[] pos = m.getPosPlayed();
+    			if(boardstate[pos[0]][pos[1]].getIdx().equals("8")) {
+    				return m;
+    			}
+    		}
     	}
-    	
-    	public int x() {
-    		return position[0];
-    	}
-    	
-    	public int y() {
-    		return position[1];
-    	}
+    	return null;
     	
     }
     
-    public class PathTree{
-    	public TileNode root;
-    	public ArrayList<TileNode> leaves = new ArrayList<TileNode>();
-    	public int length;
-    	
-    	//Init
-    	public PathTree(SaboteurTile[][] board, int[][] map) {
-    		int depth = 1;
-    		//root = origin
-    		root = new TileNode(board[5][5],5,5,0);
-    		//visited map
-    		boolean[][] visited = new boolean[board.length][board[0].length];
-    		visited[5][5] = true; 
-    		
-    		//parents list
-    		ArrayList<TileNode> parents = new ArrayList<TileNode>();
-    		parents.add(root);
-    		
-    		while(parents.size() != 0) {
-    			//children list
-    			ArrayList<TileNode> children = new ArrayList<TileNode>();
-    			
-    			for(TileNode p : parents) {
-    				//if p is a dead end, then there is no child
-    				if(checkDeadEnd(p.tile)) {
-    					leaves.add(p);
+    public static SaboteurMove destroy(ArrayList<SaboteurMove> moves, SaboteurTile[][] boardstate) {
+    	for(SaboteurMove m : moves) {
+    		String type = m.getCardPlayed().getName();
+    		if(type.equals("Destroy")) {
+    			int[] pos = m.getPosPlayed();
+    			if(checkDeadEnd(boardstate[pos[0]][pos[1]])) {
+    				return m;
+    			}
+    		}
+    	}
+    	return null;
+    }
+    
+    public static SaboteurMove drop(ArrayList<SaboteurMove> moves, ArrayList<SaboteurCard> hand, SaboteurTile[][] board) {
+    	SaboteurMove result = null;
+    	for(SaboteurMove m : moves) {
+    		String type = m.getCardPlayed().getName();
+    		if(type.equals("Drop")) {
+    			SaboteurCard c = hand.get(m.getPosPlayed()[0]);
+    			if(c instanceof SaboteurTile) {
+    				SaboteurTile tmp = (SaboteurTile)c;
+    				if(result == null) {
+						result = m;
+					}
+    				else if(checkDeadEnd(tmp)) {
+    					result = m;
     				}
-    				
-    				else {
-	    				int[][] neighbors = {{p.x()+1,p.y()},{p.x()-1,p.y()},{p.x(),p.y()+1},{p.x(),p.y()-1}};
-	    				int nbChild = 0;
-	    				//check children
-	    				for(int[] nei : neighbors) {
-	    					//check if the position exist on the board and either there is a tile(not a null object)
-	    					if(nei[0] < 14 && nei[0] > 0 && nei[1] < 14 && nei[1] > 0) {
-	    						if(map[nei[0]][nei[1]] == 1) {
-	    							SaboteurTile neighbor = board[nei[0]][nei[1]];
-	    							
-	    							//check if connected
-	    							boolean connected = false;
-	    							if(nei[0]-p.x() == p.tile.getPath()[1][2]) connected = true;
-	    							else if(nei[0]-p.x() == -p.tile.getPath()[1][0]) connected = true;
-	    							else if(nei[1]-p.y() == -p.tile.getPath()[0][1]) connected = true;
-	    							else if(nei[1]-p.y() == p.tile.getPath()[2][1]) connected = true;
-	    							
-	    							//if the node is connected and not visited
-	    							if(connected && !visited[nei[0]][nei[1]]) {
-	    								TileNode child = new TileNode(neighbor, nei[0], nei[1], depth);
-	    								p.Addchild(child);
-	    								children.add(child);
-	    								visited[nei[0]][nei[1]] = true;
-	    								nbChild++;
-	    							}
-	    						}
-	    					}
-	    				}
-	    				
-	    				//no child , becomes a leaf
-	    				if(nbChild == 0) {
-	    					leaves.add(p);
-	    				}
+    				else if(tmp.getIdx().equals("5")||tmp.getIdx().equals("5_flip")||tmp.getIdx().equals("7")||tmp.getIdx().equals("7_flip")) {
+    					if(result.getCardPlayed() instanceof SaboteurTile) {
+    						if(!checkDeadEnd((SaboteurTile)result.getCardPlayed())) {
+    							result = m;
+    						}
+    					}
     				}
     			}
-    			
-    			//children become next parents
-    			parents = children;
-    			depth++;
+    			if(c instanceof SaboteurMap && checkNugget(board)!=null) {
+    				result = m;
+    			}
     		}
-    		
-    		length = depth;
     	}
-    	
-    }*/
+    	return result;
+    }
+    
+    public static SaboteurMove tile(ArrayList<SaboteurMove> moves, SaboteurTile[][] board,int[][] intboard) {
+    	ArrayList<SaboteurMove> tilemoves = new ArrayList<SaboteurMove>();
+    	for(SaboteurMove m : moves) {
+    		if(m.getCardPlayed() instanceof SaboteurTile) {
+    			tilemoves.add(m);
+    		}
+    	}
+    	double score = -100000;
+    	SaboteurMove result = null;
+    	for(SaboteurMove m : tilemoves) {
+    		double tmp = GetHeuristic(m, board, intboard);
+    		if(tmp > score) {
+    			score = tmp;
+    			result = m;
+    		}
+    	}
+    	return result;
+    }
+    
+    
 }

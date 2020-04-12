@@ -2,6 +2,7 @@ package student_player;
 
 import java.util.ArrayList;
 
+import Saboteur.SaboteurMove;
 import Saboteur.cardClasses.SaboteurTile;
 
 public class PathTree{
@@ -10,7 +11,7 @@ public class PathTree{
 	public int length;
 	
 	//Init
-	public PathTree(SaboteurTile[][] board, int[][] map) {
+	public PathTree(SaboteurTile[][] board) {
 		int depth = 1;
 		//root = origin
 		root = new TileNode(board[5][5],5,5,0);
@@ -39,15 +40,12 @@ public class PathTree{
     				for(int[] nei : neighbors) {
     					//check if the position exist on the board and either there is a tile(not a null object)
     					if(nei[0] < 14 && nei[0] > 0 && nei[1] < 14 && nei[1] > 0) {
-    						if(map[nei[0]][nei[1]] == 1) {
+    						if(board[nei[0]][nei[1]] != null) {
     							SaboteurTile neighbor = board[nei[0]][nei[1]];
     							
     							//check if connected
-    							boolean connected = false;
-    							if(nei[0]-p.x() == p.tile.getPath()[1][2]) connected = true;
-    							else if(nei[0]-p.x() == -p.tile.getPath()[1][0]) connected = true;
-    							else if(nei[1]-p.y() == -p.tile.getPath()[0][1]) connected = true;
-    							else if(nei[1]-p.y() == p.tile.getPath()[2][1]) connected = true;
+    							boolean connected = checkConnected(p.tile, neighbor, p.x(),p.y(),nei[0],nei[1]);
+    							
     							
     							//if the node is connected and not visited
     							if(connected && !visited[nei[0]][nei[1]]) {
@@ -73,7 +71,7 @@ public class PathTree{
 			depth++;
 		}
 		
-		length = depth;
+		length = depth-1;
 	}
 	
     public boolean checkDeadEnd(SaboteurTile tile) {
@@ -85,6 +83,17 @@ public class PathTree{
     	}
     	return false;
     }
+    
+    public boolean checkConnected(SaboteurTile tile1, SaboteurTile tile2, int i, int j, int i2, int j2) {
+    	if(Math.abs(i-i2) + Math.abs(j-j2) == 1) {
+    		if(j - j2 == -1) return tile1.getPath()[2][1] == 1&&tile2.getPath()[0][1]==1;
+    		if(j - j2 == 1) return tile1.getPath()[0][1] == 1&&tile2.getPath()[2][1]==1;
+    		if(i - i2 == 1) return tile1.getPath()[1][2] == 1&&tile2.getPath()[1][0]==1;
+    		if(i - i2 == -1) return tile1.getPath()[1][0] == 1&&tile2.getPath()[1][2]==1;
+    	}
+    	return false;
+    }
+
 	
 }
 	
