@@ -14,7 +14,7 @@ public class PathTree{
 	public PathTree(SaboteurTile[][] board) {
 		int depth = 1;
 		//root = origin
-		root = new TileNode(board[5][5],5,5,0);
+		root = new TileNode(board[5][5],5,5,0, null);
 		//visited map
 		boolean[][] visited = new boolean[board.length][board[0].length];
 		visited[5][5] = true; 
@@ -49,7 +49,7 @@ public class PathTree{
     							
     							//if the node is connected and not visited
     							if(connected && !visited[nei[0]][nei[1]]) {
-    								TileNode child = new TileNode(neighbor, nei[0], nei[1], depth);
+    								TileNode child = new TileNode(neighbor, nei[0], nei[1], depth, p);
     								p.Addchild(child);
     								children.add(child);
     								visited[nei[0]][nei[1]] = true;
@@ -82,6 +82,17 @@ public class PathTree{
     		return true;
     	}
     	return false;
+    }
+    
+    public ArrayList<SaboteurTile> GetPath(TileNode tn){
+    	ArrayList<SaboteurTile> list = new ArrayList<SaboteurTile>();
+    	list.add(tn.tile);
+    	TileNode p = tn.parent;
+    	while(p != null) {
+    		list.add(p.tile);
+    		p = p.parent;
+    	}
+    	return list;
     }
     
     public boolean checkConnected(SaboteurTile tile1, SaboteurTile tile2, int i, int j, int i2, int j2) {

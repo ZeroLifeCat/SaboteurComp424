@@ -174,16 +174,37 @@ public class MyTools {
     	
     	double res = countLiveEnd(intboard)/100.0;
     	
+    	if(card.getIdx().equals("6")||card.getIdx().equals("6_flip")) {
+    		res+=0.04;
+    	}
+    	if(card.getIdx().equals("8")) {
+    		res+=0.05;
+    	}
+    	if(card.getIdx().equals("0")) {
+    		res+=0.03;
+    	}
+    	
+    	int x = checkDist(m.getPosPlayed()[0],m.getPosPlayed()[1],12,3);
+		int x2 = checkDist(m.getPosPlayed()[0],m.getPosPlayed()[1],12,5);
+		int x3 = checkDist(m.getPosPlayed()[0],m.getPosPlayed()[1],12,7);
+		
+		res += 3.0/(x+x2+x3);
+    	
     	board[m.getPosPlayed()[0]][m.getPosPlayed()[1]] = card;
     	PathTree pt = new PathTree(board);
     	double sd = 100;
     	if(nugget != null) {
     		for(TileNode tn : pt.leaves) {
     			if(!checkDeadEnd(tn.tile)) {
+    				ArrayList<SaboteurTile> p = pt.GetPath(tn);
 	    			int d = checkDist(tn.x(),tn.y(),nugget[0],nugget[1]);
 	    			if(d == 0) {
 	    				return 10000;
 	    			}
+	    			else if(p.contains(board[nugget[0]][nugget[1]])) {
+	    				return 10000;
+	    			}
+	    				
 	    			else if(d == 1||d==2) {
 	    				return -1;
 	    			}
@@ -201,13 +222,30 @@ public class MyTools {
 	    			int d = checkDist(tn.x(),tn.y(),12,3);
 	    			int d2 = checkDist(tn.x(),tn.y(),12,5);
 	    			int d3 = checkDist(tn.x(),tn.y(),12,7);
-	    			if(d == 0 && d2 == 0 && d3==0) {
+	    			ArrayList<SaboteurTile> p = pt.GetPath(tn);
+	    			if(p.contains(board[12][3])&&p.contains(board[12][5])&&p.contains(board[12][7])) {
 	    				return 10000;
 	    			}
-	    			if((d == 0 && d2 == 0) || (d3 == 0 && d2 == 0)||(d3 == 0 && d == 0)) {
+	    			else if(d == 0&&p.contains(board[12][5])&&p.contains(board[12][7])) {
+	    				return 10000;
+	    			}
+	    			else if(p.contains(board[12][3])&&d2 == 0&&p.contains(board[12][7])) {
+	    				return 10000;
+	    			}
+	    			else if(p.contains(board[12][3])&&p.contains(board[12][5])&&d3 == 0) {
+	    				return 10000;
+	    			}
+	    			
+	    			else if(p.contains(board[12][3])&&p.contains(board[12][5])) {
 	    				return 5000;
 	    			}
-	    			if(d == 0 || d2 == 0 || d3==0) {
+	    			else if(p.contains(board[12][3])&&p.contains(board[12][7])) {
+	    				return 5000;
+	    			}
+	    			else if(p.contains(board[12][7])&&p.contains(board[12][5])) {
+	    				return 5000;
+	    			}
+	    			else if(d == 0 || d2 == 0 || d3==0) {
 	    				return 1000;
 	    			}
 	    			else if(d == 1) {
@@ -228,6 +266,8 @@ public class MyTools {
     			intboard[3*m.getPosPlayed()[0]+2-j][3*m.getPosPlayed()[1]+i] = -1;
     		}
     	}
+    	
+    	
     	return 1.0/sd+res;
     }
     
